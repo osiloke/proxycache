@@ -106,6 +106,7 @@ func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 			w.Write(content)
 		}
 	} else {
+		Debug.Printf("cache does not contain %s", fullURL)
 		response, err := s.client.Get(fullURL)
 		if err != nil {
 			s.handleError(err, w)
@@ -117,6 +118,11 @@ func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.handleError(err, w)
 			return
+		}
+
+		if strings.Contains(fullURL, ".m3u8") {
+			// parse and replace urls
+			body, _ = replaceHLSUrls(body, fmt.Sprintf("http://%s/", s.addr))
 		}
 
 		err = s.cache.put(fullURL, body)
