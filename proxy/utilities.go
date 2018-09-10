@@ -5,9 +5,10 @@ import (
 	"regexp"
 )
 
-var re = regexp.MustCompile(`((?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$]))`)
+var re = regexp.MustCompile(`((?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z-a-z-0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z-a-z-0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z-a-z-0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z-a-z-0-9+&@#\/%=~_|$]))`)
 
-func replaceHLSUrls(hlsRaw []byte, proxyServerURL string) ([]byte, error) {
+// ReplaceHLSUrls replace hls urls
+func ReplaceHLSUrls(hlsRaw []byte, proxyServerURL string) ([]byte, error) {
 	s := re.ReplaceAllString(string(hlsRaw), fmt.Sprintf(`%s$1`, proxyServerURL))
 	return []byte(s), nil
 }

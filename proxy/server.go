@@ -21,6 +21,11 @@ func NewServer() *Server {
 	return &Server{logger: log.New(os.Stdout, "", 0)}
 }
 
+func OnDebug(s *Server) *Server {
+	s.debug = true
+	return s
+}
+
 // Server defines a proxy cache server
 type Server struct {
 	addr      string
@@ -30,6 +35,7 @@ type Server struct {
 	server    *http.Server
 	cache     *Cache
 	client    *http.Client
+	debug     bool
 }
 
 // Setup setup the server with addr and cache path
@@ -44,7 +50,7 @@ func (s *Server) Setup(addr, cachePath string) {
 	s.cache = cache
 
 	s.client = &http.Client{
-		Timeout: time.Second * 30,
+		Timeout: time.Second * 20,
 	}
 	if addr == "" {
 		addr = ":2017"
@@ -57,6 +63,7 @@ func (s *Server) Setup(addr, cachePath string) {
 		ReadTimeout:  30 * time.Second,
 		Handler:      http.HandlerFunc(s.handleGet),
 	}
+	s.logger.Println("Setup server")
 }
 
 // Start the server
@@ -93,12 +100,12 @@ func (s *Server) Shutdown() {
 func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 	fullURL := strings.TrimLeft(r.URL.Path+"?"+r.URL.RawQuery, "/")
 
-	Info.Printf("Requested '%s'\n", fullURL)
+	// Info.Printf("Requested '%s'\n", fullURL)
 
 	// Only pass request to target host when cache does not has an entry for the
 	// given URL.
-	if s.cache.has(fullURL) {
-		content, err := s.cache.get(fullURL)
+	if _, ok := s.cache.has(fullURL); ok {
+		_, content, err := s.cache.get(fullURL)
 
 		if err != nil {
 			s.handleError(err, w)
@@ -106,7 +113,7 @@ func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 			w.Write(content)
 		}
 	} else {
-		Debug.Printf("cache does not contain %s", fullURL)
+		// Debug.Printf("cache does not contain %s", fullURL)
 		response, err := s.client.Get(fullURL)
 		if err != nil {
 			s.handleError(err, w)
@@ -122,10 +129,10 @@ func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 
 		if strings.Contains(fullURL, ".m3u8") {
 			// parse and replace urls
-			body, _ = replaceHLSUrls(body, fmt.Sprintf("http://%s/", s.addr))
+			body, _ = ReplaceHLSUrls(body, fmt.Sprintf("http://%s/", s.addr))
 		}
 
-		err = s.cache.put(fullURL, body)
+		_, err = s.cache.put(fullURL, body)
 
 		// Do not fail. Even if the put failed, the end user would be sad if he
 		// gets an error, even if the proxy alone works.

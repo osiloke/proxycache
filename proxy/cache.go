@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 )
 
@@ -82,20 +83,55 @@ func CreateCache(path string) (*Cache, error) {
 	return cache, nil
 }
 
-func (c *Cache) has(key string) bool {
+// CacheKey generate cache key hash
+func (c *Cache) CacheKey(key string) string {
+	return calcHash(key)
+}
+func (c *Cache) clear() error {
+	d, err := os.Open(c.folder)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(c.folder, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Cache) remove(key string) error {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	hashValue := calcHash(key)
+	// _, ok := c.knownValues[hashValue]
+	filepath := path.Join(c.folder, hashValue)
+	if _, err := os.Stat(filepath); err == nil {
+		return os.Remove(filepath)
+	}
+	return nil
+}
+func (c *Cache) has(key string) (string, bool) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	hashValue := calcHash(key)
 	// _, ok := c.knownValues[hashValue]
 
 	if _, err := os.Stat(path.Join(c.folder, hashValue)); err == nil {
-		return true
+		return hashValue, true
 	}
-	return false
+	return hashValue, false
 	// return ok
 }
 
-func (c *Cache) get(key string) ([]byte, error) {
+// Get item from cache
+func (c *Cache) get(key string) (string, []byte, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	hashValue := calcHash(key)
@@ -120,7 +156,7 @@ func (c *Cache) get(key string) ([]byte, error) {
 	content, err := ioutil.ReadFile(c.folder + hashValue)
 	if err != nil {
 		Error.Printf("Error reading cached file '%s'", hashValue)
-		return nil, err
+		return hashValue, nil, err
 	}
 
 	// c.mutex.Lock()
@@ -128,10 +164,11 @@ func (c *Cache) get(key string) ([]byte, error) {
 	// c.mutex.Unlock()
 	// }
 
-	return content, nil
+	return hashValue, content, nil
 }
 
-func (c *Cache) put(key string, content []byte) error {
+// Put item into cache
+func (c *Cache) put(key string, content []byte) (string, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	hashValue := calcHash(key)
@@ -143,14 +180,14 @@ func (c *Cache) put(key string, content []byte) error {
 	// write fails, the cache isn't working correctly, which should be fixed by
 	// the user of this cache.
 	if err != nil {
-		return err
+		return hashValue, err
 	}
 	// c.mutex.Lock()
 	// c.knownValues[hashValue] = content
 	// c.mutex.Unlock()
 	Debug.Printf("Cache wrote %s content into '%s'", key, cachePath)
 
-	return err
+	return hashValue, err
 }
 
 func calcHash(data string) string {
