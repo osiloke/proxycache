@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -48,6 +49,7 @@ func (s *HLSProxy) Setup(addr, cachePath string) {
 	s.logger.Println("Setup Cache")
 }
 
+// RewriteHLS rewrite hls segment urls to proxy urls
 func (s *HLSProxy) RewriteHLS(fullURL string) *ProxyResult {
 	response, err := s.client.Get(fullURL)
 	if err != nil {
@@ -65,6 +67,7 @@ func (s *HLSProxy) RewriteHLS(fullURL string) *ProxyResult {
 	return &ProxyResult{true, "", nil, body}
 }
 
+// Clear clear proxy cache
 func (s *HLSProxy) Clear() *ProxyResult {
 	err := s.cache.clear()
 	return &ProxyResult{
@@ -80,7 +83,16 @@ func (s *HLSProxy) Has(fullURL string) *ProxyResult {
 	// Debug.Printf("cache does not contain %s", fullURL)
 	response, err := s.client.Get(fullURL)
 	if err != nil {
-		return &ProxyResult{false, "", nil, nil}
+		return &ProxyResult{false, "", err, nil}
+	}
+	if response.StatusCode != 200 {
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return &ProxyResult{false, "", err, nil}
+		}
+		response.Body.Close()
+		log.Println("retrieving cache source failed", fullURL, body)
+		return &ProxyResult{false, "", errors.New("unsuccessful response"), nil}
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
@@ -91,7 +103,7 @@ func (s *HLSProxy) Has(fullURL string) *ProxyResult {
 
 	if strings.Contains(fullURL, ".m3u8") {
 		// parse and replace urls
-		body, _ = ReplaceHLSUrls(body, fmt.Sprintf("%s/cache?file=", s.addr))
+		body, _ = ReplaceHLSUrls(body, fmt.Sprintf("%s/cache?r=1&file=", s.addr))
 	}
 
 	key, err := s.cache.put(fullURL, body)
