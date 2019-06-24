@@ -78,6 +78,7 @@ func (s *HLSProxy) Clear() *ProxyResult {
 // Has check if cache has item or cache item
 func (s *HLSProxy) Has(fullURL string) *ProxyResult {
 	if key, ok := s.cache.has(fullURL); ok {
+		// TODO: validate cache value is correct
 		return &ProxyResult{true, key, nil, nil}
 	}
 	// Debug.Printf("cache does not contain %s", fullURL)
@@ -106,6 +107,9 @@ func (s *HLSProxy) Has(fullURL string) *ProxyResult {
 		body, _ = ReplaceHLSUrls(body, fmt.Sprintf("%s/cache?r=1&file=", s.addr))
 	}
 
+	// TODO: write check file as well
+	// i.e write content length to fullURL+size
+	// use the value to check if cash item is valid by comparing size of item to size in file
 	key, err := s.cache.put(fullURL, body)
 
 	// Do not fail. Even if the put failed, the end user would be sad if he
