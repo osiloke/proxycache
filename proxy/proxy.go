@@ -20,7 +20,7 @@ type ProxyResult struct {
 
 // NewHLSProxy creates a new server
 func NewHLSProxy() *HLSProxy {
-	return &HLSProxy{logger: log.New(os.Stdout, "", 0)}
+	return &HLSProxy{Logger: log.New(os.Stdout, "", 0)}
 }
 
 // HLSProxy handles file cache
@@ -29,7 +29,7 @@ type HLSProxy struct {
 	addr      string
 	cache     *Cache
 	client    *http.Client
-	logger    *log.Logger
+	Logger    *log.Logger
 }
 
 // Setup setup cache proxy
@@ -46,7 +46,7 @@ func (s *HLSProxy) Setup(addr, cachePath string) {
 	}
 	s.addr = addr
 	s.cache = cache
-	s.logger.Println("Setup Cache")
+	s.Logger.Println("Setup Cache")
 }
 
 // RewriteHLS rewrite hls segment urls to proxy urls
